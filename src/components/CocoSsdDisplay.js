@@ -18,6 +18,8 @@ const CocoSsdDisplay = ({ stream, canvasRef }) => {
   }, []);
 
   useEffect(() => {
+    let animationId;
+  
     if (model && stream) {
       const videoTrack = stream.getVideoTracks()[0];
       const imageCapture = new ImageCapture(videoTrack);
@@ -32,14 +34,21 @@ const CocoSsdDisplay = ({ stream, canvasRef }) => {
         }).catch(error => {
           console.error('grabFrame() error:', error);
         });
-        requestAnimationFrame(processFrame);
+        animationId = requestAnimationFrame(processFrame);
       };
       processFrame();
     }
+  
+    return () => {
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+      }
+    };
   }, [model, stream, canvasRef]);
 
   const detectFrame = (canvas, model) => {
     model.detect(canvas).then(predictions => {
+        console.log(predictions);
       renderPredictions(predictions, canvas);
       setPredictions(predictions);
     });

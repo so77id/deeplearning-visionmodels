@@ -4,21 +4,34 @@ import CocoSsdDisplay from './CocoSsdDisplay';
 import YoloDisplay from './YoloDisplay';
 import './ModelDisplay.css';
 
+const modelConfig = {
+  'COCO-SSD': CocoSsdDisplay,
+  'YOLO': YoloDisplay,
+  // Agrega más modelos aquí
+};
+
 const ModelDisplay = ({ stream }) => {
   const [selectedModel, setSelectedModel] = useState('COCO-SSD');
+  const [key, setKey] = useState(0);
   const canvasRef = useRef(null);
+  const ModelComponent = modelConfig[selectedModel];
+
+  const handleModelChange = (e) => {
+    setSelectedModel(e.target.value);
+    setKey(prevKey => prevKey + 1); // increment key to force remount
+  };
 
   return (
     <div>
-      <select onChange={e => setSelectedModel(e.target.value)} value={selectedModel}>
-        <option value="COCO-SSD">COCO-SSD</option>
-        <option value="YOLO">YOLO</option>
+      <select onChange={handleModelChange} value={selectedModel}>
+        {Object.keys(modelConfig).map(model => (
+          <option key={model} value={model}>{model}</option>
+        ))}
       </select>
       <div className="video-container">
         <canvas ref={canvasRef} className="canvas" />
       </div>
-      {selectedModel === 'COCO-SSD' && <CocoSsdDisplay stream={stream} canvasRef={canvasRef} />}
-      {selectedModel === 'YOLO' && <YoloDisplay stream={stream} canvasRef={canvasRef} />}
+      <ModelComponent key={key} stream={stream} canvasRef={canvasRef} />
     </div>
   );
 };

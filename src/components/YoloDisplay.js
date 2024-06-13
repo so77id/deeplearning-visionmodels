@@ -1,6 +1,6 @@
 // YoloDisplay.js
 import React, { useEffect, useState } from 'react';
-import * as cocoSsd from '@tensorflow-models/coco-ssd';
+import yolo from 'tfjs-yolo';
 import '@tensorflow/tfjs';
 
 const YoloDisplay = ({ stream, canvasRef }) => {
@@ -11,13 +11,15 @@ const YoloDisplay = ({ stream, canvasRef }) => {
 
   useEffect(() => {
     const loadModel = async () => {
-      const model = await cocoSsd.load();
+      let model = await yolo.v1tiny();
       setModel(model);
     };
     loadModel();
   }, []);
 
   useEffect(() => {
+    let animationId;
+  
     if (model && stream) {
       const videoTrack = stream.getVideoTracks()[0];
       const imageCapture = new ImageCapture(videoTrack);
@@ -32,14 +34,21 @@ const YoloDisplay = ({ stream, canvasRef }) => {
         }).catch(error => {
           console.error('grabFrame() error:', error);
         });
-        requestAnimationFrame(processFrame);
+        animationId = requestAnimationFrame(processFrame);
       };
       processFrame();
     }
+  
+    return () => {
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+      }
+    };
   }, [model, stream, canvasRef]);
 
   const detectFrame = (canvas, model) => {
-    model.detect(canvas).then(predictions => {
+    model.predict(canvas).then(predictions => {
+      console.log(predictions);
       renderPredictions(predictions, canvas);
       setPredictions(predictions);
     });
@@ -50,22 +59,25 @@ const YoloDisplay = ({ stream, canvasRef }) => {
   
     let newColorMap = { ...colorMap };
     predictions.forEach((prediction, i) => {
-      let color = newColorMap[prediction.class];
-      if (!color) {
-        color = colors[Object.keys(newColorMap).length % colors.length];
-        newColorMap[prediction.class] = color;
+      if (prediction) {
+        let color = newColorMap[prediction.class];
+        if (!color) {
+          color = colors[Object.keys(newColorMap).length % colors.length];
+          newColorMap[prediction.class] = color;
+        }
+        ctx.beginPath();
+        // Use prediction's top, left, width, and height to draw the bounding box
+        ctx.rect(prediction.left, prediction.top, prediction.width, prediction.height);
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.stroke();
+        ctx.fillText(
+          prediction.class + ' ' + Math.round(prediction.score * 100) / 100,
+          prediction.left,
+          prediction.top > 10 ? prediction.top - 5 : 10
+        );
       }
-      ctx.beginPath();
-      ctx.rect(...prediction.bbox);
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = color;
-      ctx.fillStyle = color;
-      ctx.stroke();
-      ctx.fillText(
-        prediction.class + ' ' + Math.round(prediction.score * 100) / 100,
-        prediction.bbox[0],
-        prediction.bbox[1] > 10 ? prediction.bbox[1] - 5 : 10
-      );
     });
     setColorMap(newColorMap);
   };
@@ -75,7 +87,9 @@ const YoloDisplay = ({ stream, canvasRef }) => {
       {predictions.map((prediction, i) => (
         <div key={i}>
           <p>{prediction.class}: {(prediction.score * 100).toFixed(2)}%</p>
-          <div style={{width: `${prediction.score * 100}%`, backgroundColor: colorMap[prediction.class]}}></div>
+          <div style={{width: '100%', backgroundColor: '#ddd'}}>
+            <div style={{height: '24px', width: `${prediction.score * 100}%`, backgroundColor: colorMap[prediction.class]}}></div>
+          </div>
         </div>
       ))}
     </div>
