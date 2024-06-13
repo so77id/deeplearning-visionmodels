@@ -1,21 +1,45 @@
 // YoloDisplay.js
 import React, { useEffect, useState } from 'react';
 import yolo from 'tfjs-yolo';
+import * as tf from '@tensorflow/tfjs-core';
 import '@tensorflow/tfjs';
+import '@tensorflow/tfjs-backend-webgl';
 
-const YoloDisplay = ({ stream, canvasRef }) => {
+const YoloDisplay = ({ stream, canvasRef, isLoading, setIsLoading }) => { // Cambiar loading y setLoading a isLoading y setIsLoading
   const [model, setModel] = useState(null);
   const [predictions, setPredictions] = useState([]);
   const [colorMap, setColorMap] = useState({});
+  const [selectedModel, setSelectedModel] = useState('v1tiny');
   const colors = ['red', 'blue', 'green', 'yellow', 'purple', 'pink', 'orange'];
 
   useEffect(() => {
     const loadModel = async () => {
-      let model = await yolo.v1tiny();
+      setIsLoading(true); // Cambiar setLoading a setIsLoading
+      if (tf.getBackend() !== 'webgl') {
+        await tf.setBackend('webgl');
+      }
+      await tf.ready();
+      let model;
+      switch (selectedModel) {
+        case 'v1tiny':
+          model = await yolo.v1tiny();
+          break;
+        case 'v2tiny':
+          model = await yolo.v2tiny();
+          break;
+        case 'v3tiny':
+          model = await yolo.v3tiny();
+          break;
+        case 'v3':
+          model = await yolo.v3();
+          break;
+        // Agrega aquí más casos para otros modelos
+      }
       setModel(model);
+      setIsLoading(false); // Cambiar setLoading a setIsLoading
     };
     loadModel();
-  }, []);
+  }, [selectedModel, setIsLoading]); // Agregar setIsLoading a la lista de dependencias
 
   useEffect(() => {
     let animationId;
@@ -32,7 +56,7 @@ const YoloDisplay = ({ stream, canvasRef }) => {
           ctx.drawImage(imageBitmap, 0, 0, imageBitmap.width, imageBitmap.height);
           detectFrame(canvas, model);
         }).catch(error => {
-          console.error('grabFrame() error:', error);
+           console.error('grabFrame() error:', error);
         });
         animationId = requestAnimationFrame(processFrame);
       };
@@ -44,13 +68,14 @@ const YoloDisplay = ({ stream, canvasRef }) => {
         cancelAnimationFrame(animationId);
       }
     };
-  }, [model, stream, canvasRef]);
+  }, [model, stream, canvasRef, isLoading]);
 
   const detectFrame = (canvas, model) => {
     model.predict(canvas).then(predictions => {
-      console.log(predictions);
-      renderPredictions(predictions, canvas);
-      setPredictions(predictions);
+      if (!isLoading) { // Solo llama a renderPredictions si isLoading es false
+        renderPredictions(predictions, canvas);
+        setPredictions(predictions);
+      }
     });
   };
 
@@ -84,6 +109,14 @@ const YoloDisplay = ({ stream, canvasRef }) => {
 
   return (
     <div>
+      <select value={selectedModel} onChange={e => setSelectedModel(e.target.value)}>
+        <option value="v1tiny">YOLO v1 Tiny</option>
+        <option value="v2tiny">YOLO v2 Tiny</option>
+        <option value="v3tiny">YOLO v3 Tiny</option>
+        <option value="v3">YOLO v3</option>
+        {/* Agrega aquí más opciones para otros modelos */}
+      </select>
+     
       {predictions.map((prediction, i) => (
         <div key={i}>
           <p>{prediction.class}: {(prediction.score * 100).toFixed(2)}%</p>

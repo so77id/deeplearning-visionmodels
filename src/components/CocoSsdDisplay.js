@@ -1,9 +1,11 @@
 // CocoSsdDisplay.js
 import React, { useEffect, useState } from 'react';
 import * as cocoSsd from '@tensorflow-models/coco-ssd';
+import * as tf from '@tensorflow/tfjs-core';
 import '@tensorflow/tfjs';
+import '@tensorflow/tfjs-backend-webgl';
 
-const CocoSsdDisplay = ({ stream, canvasRef }) => {
+const CocoSsdDisplay = ({ stream, canvasRef, isLoading, setIsLoading }) => { // Agregar isLoading y setIsLoading como props
   const [model, setModel] = useState(null);
   const [predictions, setPredictions] = useState([]);
   const [colorMap, setColorMap] = useState({});
@@ -11,11 +13,18 @@ const CocoSsdDisplay = ({ stream, canvasRef }) => {
 
   useEffect(() => {
     const loadModel = async () => {
+      setIsLoading(true); // Activar loading cuando comienza la carga del modelo
+      if (tf.getBackend() !== 'webgl') {
+        await tf.setBackend('webgl');
+      }
+      await tf.ready();
       const model = await cocoSsd.load();
+      setTimeout('', 5000);
       setModel(model);
+      setIsLoading(false); // Desactivar loading cuando termina la carga del modelo
     };
     loadModel();
-  }, []);
+  }, [setIsLoading]); // Agregar setIsLoading a la lista de dependencias
 
   useEffect(() => {
     let animationId;
@@ -32,7 +41,7 @@ const CocoSsdDisplay = ({ stream, canvasRef }) => {
           ctx.drawImage(imageBitmap, 0, 0, imageBitmap.width, imageBitmap.height);
           detectFrame(canvas, model);
         }).catch(error => {
-          console.error('grabFrame() error:', error);
+           console.error('grabFrame() error:', error);
         });
         animationId = requestAnimationFrame(processFrame);
       };
@@ -48,7 +57,6 @@ const CocoSsdDisplay = ({ stream, canvasRef }) => {
 
   const detectFrame = (canvas, model) => {
     model.detect(canvas).then(predictions => {
-        console.log(predictions);
       renderPredictions(predictions, canvas);
       setPredictions(predictions);
     });
