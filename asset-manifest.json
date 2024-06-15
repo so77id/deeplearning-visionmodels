@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/deeplearning-visionmodels/static/css/main.da0e0e25.css",
+    "main.js": "/deeplearning-visionmodels/static/js/main.6225a4f3.js",
+    "static/js/453.1cb6cdf7.chunk.js": "/deeplearning-visionmodels/static/js/453.1cb6cdf7.chunk.js",
+    "index.html": "/deeplearning-visionmodels/index.html",
+    "main.da0e0e25.css.map": "/deeplearning-visionmodels/static/css/main.da0e0e25.css.map",
+    "main.6225a4f3.js.map": "/deeplearning-visionmodels/static/js/main.6225a4f3.js.map",
+    "453.1cb6cdf7.chunk.js.map": "/deeplearning-visionmodels/static/js/453.1cb6cdf7.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.da0e0e25.css",
+    "static/js/main.6225a4f3.js"
+  ]
+}
