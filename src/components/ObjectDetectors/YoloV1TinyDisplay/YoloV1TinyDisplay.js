@@ -1,11 +1,11 @@
-// CocoSsdDisplay.js
+// YoloV1TinyDisplay.js
 import React, { useEffect, useState } from 'react';
-import * as cocoSsd from '@tensorflow-models/coco-ssd';
+import yolo from 'tfjs-yolo';
 import * as tf from '@tensorflow/tfjs-core';
 import '@tensorflow/tfjs';
 import '@tensorflow/tfjs-backend-webgl';
 
-const CocoSsdDisplay = ({ stream, canvasRef, isLoading, setIsLoading }) => { // Agregar isLoading y setIsLoading como props
+const YoloV1TinyDisplay = ({ stream, canvasRef, isLoading, setIsLoading, modelContent, setmodelContent }) => { // Agregar isLoading y setIsLoading como props
   const [model, setModel] = useState(null);
   const [predictions, setPredictions] = useState([]);
   const [colorMap, setColorMap] = useState({});
@@ -13,18 +13,17 @@ const CocoSsdDisplay = ({ stream, canvasRef, isLoading, setIsLoading }) => { // 
 
   useEffect(() => {
     const loadModel = async () => {
-      setIsLoading(true); // Activar loading cuando comienza la carga del modelo
+      setIsLoading(true);
       if (tf.getBackend() !== 'webgl') {
         await tf.setBackend('webgl');
       }
       await tf.ready();
-      const model = await cocoSsd.load();
-      setTimeout('', 5000);
+      const model = await yolo.v1tiny();
       setModel(model);
-      setIsLoading(false); // Desactivar loading cuando termina la carga del modelo
+      setIsLoading(false);
     };
     loadModel();
-  }, [setIsLoading]); // Agregar setIsLoading a la lista de dependencias
+  }, [setIsLoading]);
 
   useEffect(() => {
     let animationId;
@@ -56,9 +55,11 @@ const CocoSsdDisplay = ({ stream, canvasRef, isLoading, setIsLoading }) => { // 
   }, [model, stream, canvasRef]);
 
   const detectFrame = (canvas, model) => {
-    model.detect(canvas).then(predictions => {
-      renderPredictions(predictions, canvas);
-      setPredictions(predictions);
+    model.predict(canvas).then(predictions => {
+      if (!isLoading) { // Solo llama a renderPredictions si isLoading es false
+        renderPredictions(predictions, canvas);
+        setPredictions(predictions);
+      }
     });
   };
 
@@ -67,26 +68,28 @@ const CocoSsdDisplay = ({ stream, canvasRef, isLoading, setIsLoading }) => { // 
   
     let newColorMap = { ...colorMap };
     predictions.forEach((prediction, i) => {
-      let color = newColorMap[prediction.class];
-      if (!color) {
-        color = colors[Object.keys(newColorMap).length % colors.length];
-        newColorMap[prediction.class] = color;
+      if (prediction) {
+        let color = newColorMap[prediction.class];
+        if (!color) {
+          color = colors[Object.keys(newColorMap).length % colors.length];
+          newColorMap[prediction.class] = color;
+        }
+        ctx.beginPath();
+        // Use prediction's top, left, width, and height to draw the bounding box
+        ctx.rect(prediction.left, prediction.top, prediction.width, prediction.height);
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = color;
+        ctx.fillStyle = color;
+        ctx.stroke();
+        ctx.fillText(
+          prediction.class + ' ' + Math.round(prediction.score * 100) / 100,
+          prediction.left,
+          prediction.top > 10 ? prediction.top - 5 : 10
+        );
       }
-      ctx.beginPath();
-      ctx.rect(...prediction.bbox);
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = color;
-      ctx.fillStyle = color;
-      ctx.stroke();
-      ctx.fillText(
-        prediction.class + ' ' + Math.round(prediction.score * 100) / 100,
-        prediction.bbox[0],
-        prediction.bbox[1] > 10 ? prediction.bbox[1] - 5 : 10
-      );
     });
     setColorMap(newColorMap);
   };
-
   return (
     <div>
       {predictions.map((prediction, i) => (
@@ -101,4 +104,4 @@ const CocoSsdDisplay = ({ stream, canvasRef, isLoading, setIsLoading }) => { // 
   );
 };
 
-export default CocoSsdDisplay;
+export default YoloV1TinyDisplay;

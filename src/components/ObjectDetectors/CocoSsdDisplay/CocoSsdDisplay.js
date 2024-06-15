@@ -1,45 +1,30 @@
-// YoloDisplay.js
+// CocoSsdDisplay.js
 import React, { useEffect, useState } from 'react';
-import yolo from 'tfjs-yolo';
+import * as cocoSsd from '@tensorflow-models/coco-ssd';
 import * as tf from '@tensorflow/tfjs-core';
 import '@tensorflow/tfjs';
 import '@tensorflow/tfjs-backend-webgl';
 
-const YoloDisplay = ({ stream, canvasRef, isLoading, setIsLoading }) => { // Cambiar loading y setLoading a isLoading y setIsLoading
+const CocoSsdDisplay = ({ stream, canvasRef, isLoading, setIsLoading, modelContent, setmodelContent }) => { // Agregar isLoading y setIsLoading como props
   const [model, setModel] = useState(null);
   const [predictions, setPredictions] = useState([]);
   const [colorMap, setColorMap] = useState({});
-  const [selectedModel, setSelectedModel] = useState('v1tiny');
   const colors = ['red', 'blue', 'green', 'yellow', 'purple', 'pink', 'orange'];
 
   useEffect(() => {
     const loadModel = async () => {
-      setIsLoading(true); // Cambiar setLoading a setIsLoading
+      setIsLoading(true); // Activar loading cuando comienza la carga del modelo
       if (tf.getBackend() !== 'webgl') {
         await tf.setBackend('webgl');
       }
       await tf.ready();
-      let model;
-      switch (selectedModel) {
-        case 'v1tiny':
-          model = await yolo.v1tiny();
-          break;
-        case 'v2tiny':
-          model = await yolo.v2tiny();
-          break;
-        case 'v3tiny':
-          model = await yolo.v3tiny();
-          break;
-        case 'v3':
-          model = await yolo.v3();
-          break;
-        // Agrega aquí más casos para otros modelos
-      }
+      const model = await cocoSsd.load();
+      setTimeout('', 5000);
       setModel(model);
-      setIsLoading(false); // Cambiar setLoading a setIsLoading
+      setIsLoading(false); // Desactivar loading cuando termina la carga del modelo
     };
     loadModel();
-  }, [selectedModel, setIsLoading]); // Agregar setIsLoading a la lista de dependencias
+  }, [setIsLoading]); // Agregar setIsLoading a la lista de dependencias
 
   useEffect(() => {
     let animationId;
@@ -68,10 +53,10 @@ const YoloDisplay = ({ stream, canvasRef, isLoading, setIsLoading }) => { // Cam
         cancelAnimationFrame(animationId);
       }
     };
-  }, [model, stream, canvasRef, isLoading]);
+  }, [model, stream, canvasRef]);
 
   const detectFrame = (canvas, model) => {
-    model.predict(canvas).then(predictions => {
+    model.detect(canvas).then(predictions => {
       if (!isLoading) { // Solo llama a renderPredictions si isLoading es false
         renderPredictions(predictions, canvas);
         setPredictions(predictions);
@@ -84,39 +69,28 @@ const YoloDisplay = ({ stream, canvasRef, isLoading, setIsLoading }) => { // Cam
   
     let newColorMap = { ...colorMap };
     predictions.forEach((prediction, i) => {
-      if (prediction) {
-        let color = newColorMap[prediction.class];
-        if (!color) {
-          color = colors[Object.keys(newColorMap).length % colors.length];
-          newColorMap[prediction.class] = color;
-        }
-        ctx.beginPath();
-        // Use prediction's top, left, width, and height to draw the bounding box
-        ctx.rect(prediction.left, prediction.top, prediction.width, prediction.height);
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = color;
-        ctx.fillStyle = color;
-        ctx.stroke();
-        ctx.fillText(
-          prediction.class + ' ' + Math.round(prediction.score * 100) / 100,
-          prediction.left,
-          prediction.top > 10 ? prediction.top - 5 : 10
-        );
+      let color = newColorMap[prediction.class];
+      if (!color) {
+        color = colors[Object.keys(newColorMap).length % colors.length];
+        newColorMap[prediction.class] = color;
       }
+      ctx.beginPath();
+      ctx.rect(...prediction.bbox);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.stroke();
+      ctx.fillText(
+        prediction.class + ' ' + Math.round(prediction.score * 100) / 100,
+        prediction.bbox[0],
+        prediction.bbox[1] > 10 ? prediction.bbox[1] - 5 : 10
+      );
     });
     setColorMap(newColorMap);
   };
 
   return (
     <div>
-      <select value={selectedModel} onChange={e => setSelectedModel(e.target.value)}>
-        <option value="v1tiny">YOLO v1 Tiny</option>
-        <option value="v2tiny">YOLO v2 Tiny</option>
-        <option value="v3tiny">YOLO v3 Tiny</option>
-        <option value="v3">YOLO v3</option>
-        {/* Agrega aquí más opciones para otros modelos */}
-      </select>
-     
       {predictions.map((prediction, i) => (
         <div key={i}>
           <p>{prediction.class}: {(prediction.score * 100).toFixed(2)}%</p>
@@ -129,4 +103,4 @@ const YoloDisplay = ({ stream, canvasRef, isLoading, setIsLoading }) => { // Cam
   );
 };
 
-export default YoloDisplay;
+export default CocoSsdDisplay;
