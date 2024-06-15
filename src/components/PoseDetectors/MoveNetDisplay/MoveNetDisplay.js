@@ -4,10 +4,8 @@ import * as tf from '@tensorflow/tfjs-core';
 import '@tensorflow/tfjs';
 import '@tensorflow/tfjs-backend-webgl';
 
-const PoseDisplay = ({ stream, canvasRef, isLoading, setIsLoading }) => {
+const MoveNetDisplay = ({ stream, canvasRef, isLoading, setIsLoading }) => {
   const [model, setModel] = useState(null);
-  const [selectedModel, setSelectedModel] = useState('MoveNet');
-  const videoRef = useRef(null);
 
   useEffect(() => {
     const loadModel = async () => {
@@ -16,29 +14,12 @@ const PoseDisplay = ({ stream, canvasRef, isLoading, setIsLoading }) => {
         await tf.setBackend('webgl');
       }
       await tf.ready();
-      let model;
-      switch (selectedModel) {
-        case 'MoveNet':
-          model = await createDetector(SupportedModels.MoveNet);
-          break;
-        case 'BlazePose':
-          const model_type = SupportedModels.BlazePose;
-          const detectorConfig = {
-            runtime: 'tfjs',
-            enableSmoothing: true,
-            modelType: 'full'
-          };
-          model = await createDetector(model_type, detectorConfig);
-          break;
-        case 'PoseNet':
-          model = await createDetector(SupportedModels.PoseNet);
-          break;
-      }
+      const model = await createDetector(SupportedModels.MoveNet);
       setModel(model);
       setIsLoading(false);
     };
     loadModel();
-  }, [selectedModel, setIsLoading]);
+  }, [setIsLoading]);
 
   useEffect(() => {
     let animationId;
@@ -86,29 +67,15 @@ const PoseDisplay = ({ stream, canvasRef, isLoading, setIsLoading }) => {
         ctx.fillStyle = 'aqua';
         ctx.fill();
       });
-      drawSkeleton(keypoints, ctx, selectedModel);
+      drawSkeleton(keypoints, ctx);
     });
   };
 
-  const drawSkeleton = (keypoints, ctx, model) => {
-    let pairs;
-    switch (model) {
-      case 'MoveNet':
-      case 'PoseNet':
-        pairs = [
-          [0, 1], [1, 3], [0, 2], [2, 4], [0, 5], [5, 7], [7, 9], [5, 11], [11, 13], [13, 15],
-          [0, 6], [6, 8], [8, 10], [6, 12], [12, 14], [14, 16]
-        ];
-        break;
-      case 'BlazePose':
-        pairs = [
-          [0, 1], [1, 2], [2, 3], [3, 7], [0, 4], [4, 5], [5, 6], [6, 8], [9, 10], [11, 12],
-          [12, 24], [24, 23], [23, 11], [24, 26], [26, 28], [28, 32], [32, 30], [30, 28],
-          [23, 25], [25, 27], [27, 31], [31, 29], [29, 27], [11, 13], [13, 15], [15, 17], [12, 14],
-          [14, 16], [16, 18], [18, 20], [20, 22], [22, 16], [16, 19], [19, 21], [21, 17]
-        ];
-        break;
-    }
+  const drawSkeleton = (keypoints, ctx) => {
+    const pairs = [
+      [0, 1], [1, 3], [0, 2], [2, 4], [0, 5], [5, 7], [7, 9], [5, 11], [11, 13], [13, 15],
+      [0, 6], [6, 8], [8, 10], [6, 12], [12, 14], [14, 16]
+    ];
     pairs.forEach(pair => {
       const [start, end] = pair;
       if (keypoints[start] && keypoints[end]) {
@@ -124,13 +91,8 @@ const PoseDisplay = ({ stream, canvasRef, isLoading, setIsLoading }) => {
 
   return (
     <div>
-      <select value={selectedModel} onChange={e => setSelectedModel(e.target.value)}>
-        <option value="MoveNet">MoveNet</option>
-        <option value="BlazePose">BlazePose</option>
-        <option value="PoseNet">PoseNet</option>
-      </select>
     </div>
   );
 };
 
-export default PoseDisplay;
+export default MoveNetDisplay;

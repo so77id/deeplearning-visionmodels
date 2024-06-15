@@ -1,12 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { createDetector, SupportedModels } from '@tensorflow-models/face-detection';
+import { createDetector, SupportedModels } from '@tensorflow-models/pose-detection';
 import * as tf from '@tensorflow/tfjs-core';
 import '@tensorflow/tfjs';
 import '@tensorflow/tfjs-backend-webgl';
 
-const MediaPipeFaceDetectorDisplay = ({ stream, canvasRef, isLoading, setIsLoading }) => {
+const BlazePoseDisplay = ({ stream, canvasRef, isLoading, setIsLoading }) => {
   const [model, setModel] = useState(null);
-  const videoRef = useRef(null);
 
   useEffect(() => {
     const loadModel = async () => {
@@ -15,7 +14,13 @@ const MediaPipeFaceDetectorDisplay = ({ stream, canvasRef, isLoading, setIsLoadi
         await tf.setBackend('webgl');
       }
       await tf.ready();
-      const model = await createDetector(SupportedModels.MediaPipeFaceDetector, { runtime: 'tfjs' });
+      const model_type = SupportedModels.BlazePose;
+      const detectorConfig = {
+        runtime: 'tfjs',
+        enableSmoothing: true,
+        modelType: 'full'
+      };
+      const model = await createDetector(model_type, detectorConfig);
       setModel(model);
       setIsLoading(false);
     };
@@ -52,36 +57,48 @@ const MediaPipeFaceDetectorDisplay = ({ stream, canvasRef, isLoading, setIsLoadi
   }, [model, stream, canvasRef, isLoading]);
 
   const detectFrame = async (canvas, model) => {
-    const predictions = await model.estimateFaces(canvas);
+    const predictions = await model.estimatePoses(canvas);
     if (!isLoading) {
-      drawBoundingBoxes(predictions, canvas);
+      drawKeypoints(predictions, canvas);
     }
   };
 
-  const drawBoundingBoxes = (predictions, canvas) => {
+  const drawKeypoints = (predictions, canvas) => {
     const ctx = canvas.getContext('2d');
     predictions.forEach(prediction => {
-     const { xMin, xMax, yMin, yMax, width, height } = prediction.box;
-      ctx.rect(xMin, yMin, width, height);
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = 'red';
-      ctx.fillStyle = 'red';
-      ctx.stroke();
-  
-      prediction.keypoints.forEach(keypoint => {
+      const keypoints = prediction.keypoints;
+      keypoints.forEach(keypoint => {
         ctx.beginPath();
-        ctx.arc(keypoint.x, keypoint.y, 5, 0, 2 * Math.PI); // 5 is the radius of the circle
-        ctx.fillStyle = 'green';
+        ctx.arc(keypoint.x, keypoint.y, 5, 0, 2 * Math.PI);
+        ctx.fillStyle = 'aqua';
         ctx.fill();
       });
+      drawSkeleton(keypoints, ctx);
+    });
+  };
+
+  const drawSkeleton = (keypoints, ctx) => {
+    const pairs = [
+      [0, 1], [1, 3], [0, 2], [2, 4], [0, 5], [5, 7], [7, 9], [5, 11], [11, 13], [13, 15],
+      [0, 6], [6, 8], [8, 10], [6, 12], [12, 14], [14, 16]
+    ];
+    pairs.forEach(pair => {
+      const [start, end] = pair;
+      if (keypoints[start] && keypoints[end]) {
+        ctx.beginPath();
+        ctx.moveTo(keypoints[start].x, keypoints[start].y);
+        ctx.lineTo(keypoints[end].x, keypoints[end].y);
+        ctx.strokeStyle = 'green';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
     });
   };
 
   return (
     <div>
-      <canvas ref={canvasRef} />
     </div>
   );
 };
 
-export default MediaPipeFaceDetectorDisplay;
+export default BlazePoseDisplay;
